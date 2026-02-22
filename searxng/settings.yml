@@ -1,0 +1,32 @@
+# =============================================================================
+# SearXNG Settings
+# =============================================================================
+# secret_key is injected via SEARXNG_SECRET env var (see .env)
+# Reference: https://docs.searxng.org/admin/settings/settings.html
+# =============================================================================
+
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - wikipedia
+
+server:
+  limiter: false          # Disable for private instance
+  image_proxy: true
+  port: 8080
+  bind_address: "0.0.0.0"
+
+ui:
+  static_use_hash: true
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "ja-JP"
+  formats:
+    - html
+    - json               # Required for Open WebUI integration
+
+outgoing:
+  request_timeout: 3.0

@@ -1,0 +1,103 @@
+# =============================================================================
+# Open WebUI Stack - Docker Compose
+# =============================================================================
+# Open WebUI + SearXNG + Cloudflare Tunnel + Watchtower
+#
+# Setup:
+#   1. cp .env.example .env && vi .env
+#   2. docker compose up -d
+#
+# Daily operations:
+#   docker compose ps              # Check status
+#   docker compose logs -f         # Follow logs
+#   docker compose pull && docker compose up -d  # Manual update
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Open WebUI - LLM Frontend
+  # ---------------------------------------------------------------------------
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "${OPEN_WEBUI_PORT:-3000}:8080"
+    volumes:
+      - ${OPEN_WEBUI_DATA_DIR}:/app/backend/data
+      - ${CA_CERT_PATH}:/usr/local/share/ca-certificates/rootCA.crt:ro
+    environment:
+      # --- LLM Backend ---
+      - ENABLE_OLLAMA_API=false
+      - OPENAI_API_BASE_URLS=${OPENAI_API_BASE_URLS}
+      - OPENAI_API_KEYS=${OPENAI_API_KEYS:-dummy}
+      # --- Web Search (SearXNG) ---
+      - ENABLE_RAG_WEB_SEARCH=True
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - RAG_WEB_SEARCH_RESULT_COUNT=5
+      - RAG_WEB_SEARCH_CONCURRENT_REQUESTS=10
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>
+    command: >
+      bash -c "update-ca-certificates && bash start.sh"
+    depends_on:
+      - searxng
+    networks:
+      - app-net
+
+  # ---------------------------------------------------------------------------
+  # SearXNG - Meta Search Engine
+  # ---------------------------------------------------------------------------
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_SECRET=${SEARXNG_SECRET}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "1"
+    networks:
+      - app-net
+
+  # ---------------------------------------------------------------------------
+  # Cloudflare Tunnel - External Access
+  # ---------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - app-net
+
+  # ---------------------------------------------------------------------------
+  # Watchtower - Auto-update (monitors open-webui only)
+  # ---------------------------------------------------------------------------
+  watchtower:
+    image: nickfedor/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    command: --interval 300 open-webui
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  app-net:
+    driver: bridge
