@@ -62,3 +62,10 @@ If `uwsgi.ini` fails to generate on first run: temporarily comment out `cap_drop
 ## Related Resources
 
 - Sibling directory `../ai-specs` is configured as an additional Claude Code directory (`.claude/settings.json`) and contains architecture design documents.
+
+## LangChain Project: Phase Workflow
+
+This repo participates in the LangChain phased implementation.
+Canonical rules: `../ai-specs/CLAUDE.md` § "LangChain Project: Phase Workflow"
+
+Phase handoffs and completion reports are stored in `.context-private/`.
