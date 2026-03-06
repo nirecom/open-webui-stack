@@ -29,4 +29,4 @@ search:
     - json               # Required for Open WebUI integration
 
 outgoing:
-  request_timeout: 3.0
+  request_timeout: 2.0
