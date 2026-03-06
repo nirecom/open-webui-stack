@@ -42,7 +42,7 @@ docker compose up -d
 
 ### Connecting to LiteLLM (recommended)
 
-If [litellm-stack](https://github.com/nirecom/litellm-stack) runs on the **same Docker host**, Open WebUI can reach it by Docker container name. Both stacks must share the same external Docker network.
+If [litellm-stack](https://github.com/nirecom/litellm-stack) runs on the **same Docker host**, Open WebUI can reach it by Docker container name. Both stacks share the `shared-llm-net` Docker network, which is owned by litellm-stack. Start litellm-stack first (or run `docker network create shared-llm-net` manually).
 
 ```env
 OPENAI_API_BASE_URLS=http://litellm-proxy:4000/v1

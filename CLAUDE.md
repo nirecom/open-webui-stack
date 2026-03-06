@@ -33,7 +33,7 @@ Cloudflare → cloudflared → Open WebUI
 Watchtower → auto-updates open-webui only (every 5 min)
 ```
 
-All services communicate over the `app-net` bridge network using Docker DNS (container names as hostnames).
+All services communicate over the `app-net` network (backed by the external `shared-llm-net` Docker network) using Docker DNS (container names as hostnames).
 
 ## Services (docker-compose.yml)
 
@@ -53,7 +53,7 @@ All services communicate over the `app-net` bridge network using Docker DNS (con
 
 ## Cross-Stack Networking
 
-When litellm-stack runs on the same Docker host, both stacks must share an external Docker network so `open-webui` can resolve `litellm-proxy:4000` by container name.
+Both stacks share a Docker network named `shared-llm-net`. **litellm-stack owns this network** (defined in its `docker-compose.override.yml`); open-webui-stack references it as `external`. This means litellm-stack must be started first (or the network must be created manually via `docker network create shared-llm-net`).
 
 ## SearXNG First-Run Workaround
 
