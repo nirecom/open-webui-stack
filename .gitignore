@@ -1,3 +1,7 @@
+<<<<<<< Updated upstream
 .env
 searxng/settings-default.yml
 searxng/uwsgi.ini
+=======
+**/.env
+>>>>>>> Stashed changes
