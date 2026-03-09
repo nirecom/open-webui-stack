@@ -1,3 +1,4 @@
 **/.env
 searxng/settings-default.yml
 searxng/uwsgi.ini
+bin/*.log
