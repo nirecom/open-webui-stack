@@ -13,6 +13,7 @@ use_default_settings:
 
 server:
   limiter: false          # Disable for private instance
+  public: false           # Disable bot detection for private instance
   image_proxy: true
   port: 8080
   bind_address: "0.0.0.0"
