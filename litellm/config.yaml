@@ -1,0 +1,76 @@
+# LiteLLM Proxy configuration
+# All endpoints, model names, and API keys are resolved from environment variables.
+# See .env.example for the required variables.
+
+model_list:
+  # ================================================================
+  # Direct models (visible in Open WebUI model dropdown)
+  # ================================================================
+  - model_name: gpt-oss-120b
+    litellm_params:
+      model: os.environ/DIRECT_LOCAL_MODEL
+      api_base: os.environ/LLAMA_SERVER_URL
+      api_key: "not-needed"
+      timeout: 120
+      stream_timeout: 60
+
+  # ================================================================
+  # Reasoner: primary inference model
+  # Fallback order: local GPU host → Cloud API
+  # ================================================================
+  - model_name: reasoner
+    litellm_params:
+      model: os.environ/REASONER_LOCAL_MODEL
+      api_base: os.environ/LLAMA_SERVER_URL
+      api_key: "not-needed"
+      timeout: 30
+      order: 1
+
+  - model_name: reasoner
+    litellm_params:
+      model: os.environ/REASONER_CLOUD_MODEL
+      api_key: os.environ/CLOUD_API_KEY
+      order: 2
+
+  # ================================================================
+  # Judge: evaluation model for LangChain Judge chain
+  # Load balance: Mac + GPU host (least-busy), Cloud fallback
+  # ================================================================
+  - model_name: judge
+    litellm_params:
+      model: os.environ/JUDGE_LOCAL_MODEL
+      api_base: os.environ/PORTABLE_LLM_SERVER_URL
+      api_key: "not-needed"
+      timeout: 5
+      max_parallel_requests: 4
+      order: 1
+
+  - model_name: judge
+    litellm_params:
+      model: os.environ/JUDGE_LOCAL_MODEL
+      api_base: os.environ/LLAMA_SERVER_URL
+      api_key: "not-needed"
+      timeout: 30
+      max_parallel_requests: 4
+      order: 1
+
+  - model_name: judge
+    litellm_params:
+      model: os.environ/JUDGE_CLOUD_MODEL
+      api_key: os.environ/CLOUD_API_KEY
+      order: 2
+
+router_settings:
+  enable_pre_call_checks: true   # Required for 'order' to work
+  routing_strategy: "least-busy"
+  num_retries: 2
+  timeout: 60
+  retry_after: 5
+  allowed_fails: 2
+  cooldown_time: 30
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true              # Ignore unsupported params per provider

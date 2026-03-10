@@ -1,7 +1,7 @@
 # =============================================================================
 # Open WebUI Stack - Docker Compose
 # =============================================================================
-# Open WebUI + SearXNG + Cloudflare Tunnel + Watchtower
+# Open WebUI + LiteLLM Proxy + SearXNG + Cloudflare Tunnel + Watchtower
 #
 # Setup:
 #   1. cp .env.example .env && vi .env
@@ -43,9 +43,35 @@ services:
     command: >
       bash -c "update-ca-certificates && bash start.sh"
     depends_on:
-      - searxng
-    networks:
-      - app-net
+      searxng:
+        condition: service_started
+      litellm-proxy:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # LiteLLM Proxy - LLM Gateway (model routing, fallback, load balancing)
+  # ---------------------------------------------------------------------------
+  litellm-proxy:
+    image: docker.litellm.ai/berriai/litellm:main-stable
+    container_name: litellm-proxy
+    restart: unless-stopped
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ${CA_CERT_PATH}:/usr/local/share/ca-certificates/rootCA.crt:ro
+    env_file:
+      - .env
+    entrypoint: >
+      bash -c "cat /usr/local/share/ca-certificates/rootCA.crt
+      >> /etc/ssl/certs/ca-certificates.crt
+      && litellm --config /app/config.yaml --port 4000"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+        "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/readiness')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ---------------------------------------------------------------------------
   # SearXNG - Meta Search Engine
@@ -72,8 +98,6 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
-    networks:
-      - app-net
 
   # ---------------------------------------------------------------------------
   # Cloudflare Tunnel - External Access
@@ -83,8 +107,6 @@ services:
     container_name: cloudflared
     restart: unless-stopped
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    networks:
-      - app-net
 
   # ---------------------------------------------------------------------------
   # Watchtower - Auto-update (monitors open-webui only)
@@ -96,11 +118,3 @@ services:
     command: --interval 300 open-webui
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
-# =============================================================================
-# Networks
-# =============================================================================
-networks:
-  app-net:
-    external: true
-    name: shared-llm-net
