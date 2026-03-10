@@ -4,17 +4,6 @@
 
 model_list:
   # ================================================================
-  # Direct models (visible in Open WebUI model dropdown)
-  # ================================================================
-  - model_name: gpt-oss-120b
-    litellm_params:
-      model: os.environ/DIRECT_LOCAL_MODEL
-      api_base: os.environ/LLAMA_SERVER_URL
-      api_key: "not-needed"
-      timeout: 120
-      stream_timeout: 60
-
-  # ================================================================
   # Reasoner: primary inference model
   # Fallback order: local GPU host → Cloud API
   # ================================================================
