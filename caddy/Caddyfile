@@ -6,6 +6,10 @@
 # SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3000)
 
 :8080 {
+	log {
+		output stderr
+	}
+
 	reverse_proxy {
 		to {$SLAVE_OPEN_WEBUI_URL} open-webui:8080
 
