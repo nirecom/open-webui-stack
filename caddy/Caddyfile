@@ -1,0 +1,17 @@
+# Reverse proxy with active-passive failover
+# Primary: penpen open-webui (fast, local GPU)
+# Fallback: QNAP open-webui (same compose network)
+#
+# cloudflared tunnel points to http://caddy:8080
+
+:8080 {
+	reverse_proxy {
+		to {$PENPEN_OPEN_WEBUI_URL:192.168.5.7:3000} open-webui:8080
+
+		lb_policy first
+
+		health_uri /health
+		health_interval 5s
+		health_timeout 3s
+	}
+}

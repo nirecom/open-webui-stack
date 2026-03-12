@@ -16,6 +16,28 @@
 services:
 
   # ---------------------------------------------------------------------------
+  # PostgreSQL - Shared database for multi-host Open WebUI
+  # ---------------------------------------------------------------------------
+  postgres:
+    profiles: ["db-host"]
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ${POSTGRES_DATA_DIR}:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=openwebui
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d openwebui"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
   # Open WebUI - LLM Frontend
   # ---------------------------------------------------------------------------
   open-webui:
@@ -28,6 +50,8 @@ services:
       - ${OPEN_WEBUI_DATA_DIR}:/app/backend/data
       - ${CA_CERT_PATH}:/usr/local/share/ca-certificates/rootCA.crt:ro
     environment:
+      # --- Database (PostgreSQL for multi-host, omit for SQLite) ---
+      - DATABASE_URL=${OPEN_WEBUI_DATABASE_URL:-}
       # --- LLM Backend ---
       - ENABLE_OLLAMA_API=false
       - OPENAI_API_BASE_URLS=${OPENAI_API_BASE_URLS}
@@ -43,6 +67,9 @@ services:
     command: >
       bash -c "update-ca-certificates && bash start.sh"
     depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
       searxng:
         condition: service_started
       litellm-proxy:
@@ -100,9 +127,22 @@ services:
         max-file: "1"
 
   # ---------------------------------------------------------------------------
+  # Caddy - Reverse proxy with failover (slave primary, master fallback)
+  # ---------------------------------------------------------------------------
+  caddy:
+    profiles: ["gateway"]
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+  # ---------------------------------------------------------------------------
   # Cloudflare Tunnel - External Access
   # ---------------------------------------------------------------------------
   cloudflared:
+    profiles: ["gateway"]
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
     restart: unless-stopped
@@ -118,3 +158,6 @@ services:
     command: --interval 300 open-webui
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  caddy_data:
