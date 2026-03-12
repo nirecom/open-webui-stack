@@ -1,12 +1,13 @@
 # Reverse proxy with active-passive failover
-# Primary: penpen open-webui (fast, local GPU)
-# Fallback: QNAP open-webui (same compose network)
+# Primary: slave host open-webui (fast, local GPU)
+# Fallback: local open-webui (same compose network)
 #
 # cloudflared tunnel points to http://caddy:8080
+# SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3000)
 
 :8080 {
 	reverse_proxy {
-		to {$PENPEN_OPEN_WEBUI_URL:192.168.5.7:3000} open-webui:8080
+		to {$SLAVE_OPEN_WEBUI_URL} open-webui:8080
 
 		lb_policy first
 

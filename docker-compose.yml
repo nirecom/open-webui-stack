@@ -137,6 +137,8 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
+    environment:
+      - SLAVE_OPEN_WEBUI_URL=${SLAVE_OPEN_WEBUI_URL:-}
 
   # ---------------------------------------------------------------------------
   # Cloudflare Tunnel - External Access
