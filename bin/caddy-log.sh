@@ -4,7 +4,7 @@
 #        ./bin/caddy-log.sh --tail   (last 50 lines)
 
 if command -v jq >/dev/null 2>&1; then
-  JQ_FILTER='select(.msg == "handled request") | "\(.request.method) \(.status) \(.request.uri) dur=\(.duration)s"'
+  JQ_FILTER='select(.msg == "handled request") | "\(.request.method) \(.status) \(.request.uri) →\(.resp_headers["X-Upstream"][0] // "?") dur=\(.duration)s"'
   if [ "$1" = "--tail" ]; then
     docker compose logs --tail 50 caddy 2>&1 | grep '"handled request"' | sed 's/^caddy  | //' | jq -r "$JQ_FILTER"
   else
@@ -13,8 +13,8 @@ if command -v jq >/dev/null 2>&1; then
 else
   # Fallback without jq: extract key fields with grep/sed
   if [ "$1" = "--tail" ]; then
-    docker compose logs --tail 50 caddy 2>&1 | grep '"handled request"' | sed 's/.*"method":"\([^"]*\)".*"uri":"\([^"]*\)".*"status":\([0-9]*\).*"duration":\([0-9.]*\).*/\1 \3 \2 dur=\4s/'
+    docker compose logs --tail 50 caddy 2>&1 | grep '"handled request"' | sed 's/.*"method":"\([^"]*\)".*"uri":"\([^"]*\)".*"status":\([0-9]*\).*"X-Upstream":\["\([^"]*\)"\].*"duration":\([0-9.]*\).*/\1 \3 \2 →\4 dur=\5s/'
   else
-    docker compose logs -f caddy 2>&1 | grep --line-buffered '"handled request"' | sed 's/.*"method":"\([^"]*\)".*"uri":"\([^"]*\)".*"status":\([0-9]*\).*"duration":\([0-9.]*\).*/\1 \3 \2 dur=\4s/'
+    docker compose logs -f caddy 2>&1 | grep --line-buffered '"handled request"' | sed 's/.*"method":"\([^"]*\)".*"uri":"\([^"]*\)".*"status":\([0-9]*\).*"X-Upstream":\["\([^"]*\)"\].*"duration":\([0-9.]*\).*/\1 \3 \2 →\4 dur=\5s/'
   fi
 fi
