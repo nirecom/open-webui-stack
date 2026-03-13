@@ -19,6 +19,6 @@
 		health_interval 5s
 		health_timeout 3s
 
-		header_down X-Upstream {upstream.address}
+		header_down X-Upstream {http.reverse_proxy.upstream.address}
 	}
 }
