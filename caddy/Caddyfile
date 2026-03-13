@@ -10,10 +10,8 @@
 		output stderr
 		format filter {
 			wrap console
-			fields {
-				request>headers delete
-				resp_headers  delete
-			}
+			request>headers delete
+			resp_headers  delete
 		}
 	}
 
