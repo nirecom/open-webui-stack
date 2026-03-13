@@ -8,6 +8,7 @@
 :8080 {
 	log {
 		output stderr
+		format console
 	}
 
 	reverse_proxy {
