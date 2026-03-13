@@ -8,7 +8,13 @@
 :8080 {
 	log {
 		output stderr
-		format console
+		format filter {
+			wrap console
+			fields {
+				request>headers delete
+				resp_headers  delete
+			}
+		}
 	}
 
 	reverse_proxy {
