@@ -4,7 +4,7 @@
 #        ./bin/caddy-log.sh --tail   (last 50 lines)
 
 if command -v jq >/dev/null 2>&1; then
-  JQ_FILTER='select(.logger | test("access")) | "\(.request.method) \(.status) \(.request.uri) upstream=\(.request.host // "-") dur=\(.duration)s"'
+  JQ_FILTER='select(.msg == "handled request") | "\(.request.method) \(.status) \(.request.uri) dur=\(.duration)s"'
   if [ "$1" = "--tail" ]; then
     docker compose logs --tail 50 caddy 2>&1 | grep '"handled request"' | sed 's/^caddy  | //' | jq -r "$JQ_FILTER"
   else
