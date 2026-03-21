@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate litellm/config.yaml model routing priorities.
+# Validate litellm/config.yaml model routing with fallback-based strategy.
 # Uses only standard tools (grep, awk) — no Python dependencies required.
 
 set -euo pipefail
@@ -11,90 +11,132 @@ FAIL=0
 pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
 
-# Extract order values for a model group.
-# Outputs lines like: REASONER_LOCAL 1
-get_orders() {
-    local group="$1"
-    awk -v group="$group" '
-        /^[[:space:]]*- model_name:/ { in_group = ($NF == group); model = "" }
-        in_group && /model:/ { model = $NF }
-        in_group && /order:/ { print model, $NF; in_group = 0 }
+# Extract api_base for a given model_name
+get_api_base() {
+    local name="$1"
+    awk -v name="$name" '
+        /^[[:space:]]*- model_name:/ { in_block = ($NF == name) }
+        in_block && /api_base:/ { print $NF; in_block = 0 }
     ' "$CONFIG"
+}
+
+# Extract a litellm_params field value for a given model_name
+get_param() {
+    local name="$1" field="$2"
+    awk -v name="$name" -v field="$field:" '
+        /^[[:space:]]*- model_name:/ { in_block = ($NF == name) }
+        in_block && $1 == field { print $NF; in_block = 0 }
+    ' "$CONFIG"
+}
+
+# Extract fallback list for a model group from litellm_settings.fallbacks
+get_fallbacks() {
+    local group="$1"
+    grep -A1 "\"*$group\"*:" "$CONFIG" | grep -o '\[.*\]' | head -1
 }
 
 echo "=== Normal cases ==="
 
-# Reasoner: Win GPU (REASONER_LOCAL) should be order 1
-order=$(get_orders "reasoner" | grep "REASONER_LOCAL" | awk '{print $2}')
-[[ "$order" == "1" ]] && pass "Win GPU (reasoner_local) is order 1" \
-                       || fail "Win GPU (reasoner_local) expected order 1, got $order"
+# Reasoner primary uses local (Win GPU)
+base=$(get_api_base "reasoner")
+[[ "$base" == *"LLAMA_SERVER_URL"* ]] && pass "reasoner primary uses LLAMA_SERVER_URL" \
+                                        || fail "reasoner primary expected LLAMA_SERVER_URL, got $base"
 
-# Reasoner: Mac (REASONER_PORTABLE) should be order 2
-order=$(get_orders "reasoner" | grep "REASONER_PORTABLE" | awk '{print $2}')
-[[ "$order" == "2" ]] && pass "Mac (reasoner_portable) is order 2" \
-                       || fail "Mac (reasoner_portable) expected order 2, got $order"
+# Reasoner-portable uses portable (Mac)
+base=$(get_api_base "reasoner-portable")
+[[ "$base" == *"PORTABLE_LLM_SERVER_URL"* ]] && pass "reasoner-portable uses PORTABLE_LLM_SERVER_URL" \
+                                                || fail "reasoner-portable expected PORTABLE_LLM_SERVER_URL, got $base"
 
-# Reasoner: Cloud should be order 3
-order=$(get_orders "reasoner" | grep "REASONER_CLOUD" | awk '{print $2}')
-[[ "$order" == "3" ]] && pass "Cloud (reasoner_cloud) is order 3" \
-                       || fail "Cloud (reasoner_cloud) expected order 3, got $order"
+# Reasoner-cloud uses cloud API key
+key=$(get_param "reasoner-cloud" "api_key")
+[[ "$key" == *"CLOUD_API_KEY"* ]] && pass "reasoner-cloud uses CLOUD_API_KEY" \
+                                    || fail "reasoner-cloud expected CLOUD_API_KEY, got $key"
 
-# Reasoner: exactly 3 deployments
-count=$(get_orders "reasoner" | wc -l | tr -d ' ')
-[[ "$count" == "3" ]] && pass "Reasoner has 3 deployments" \
-                       || fail "Reasoner expected 3 deployments, got $count"
+# Judge primary uses local (Win GPU)
+base=$(get_api_base "judge")
+[[ "$base" == *"LLAMA_SERVER_URL"* ]] && pass "judge primary uses LLAMA_SERVER_URL" \
+                                        || fail "judge primary expected LLAMA_SERVER_URL, got $base"
 
-# Judge: local hosts are order 1
-judge_order1=$(get_orders "judge" | awk '$2 == 1' | wc -l | tr -d ' ')
-[[ "$judge_order1" == "2" ]] && pass "Judge has 2 local hosts at order 1" \
-                              || fail "Judge expected 2 order-1 entries, got $judge_order1"
+# Judge-portable uses portable (Mac)
+base=$(get_api_base "judge-portable")
+[[ "$base" == *"PORTABLE_LLM_SERVER_URL"* ]] && pass "judge-portable uses PORTABLE_LLM_SERVER_URL" \
+                                                || fail "judge-portable expected PORTABLE_LLM_SERVER_URL, got $base"
 
-# Judge: cloud is order 2
-judge_cloud=$(get_orders "judge" | grep "CLOUD" | awk '{print $2}')
-[[ "$judge_cloud" == "2" ]] && pass "Judge cloud is order 2" \
-                             || fail "Judge cloud expected order 2, got $judge_cloud"
+# Judge-cloud uses cloud API key
+key=$(get_param "judge-cloud" "api_key")
+[[ "$key" == *"CLOUD_API_KEY"* ]] && pass "judge-cloud uses CLOUD_API_KEY" \
+                                    || fail "judge-cloud expected CLOUD_API_KEY, got $key"
+
+# Fallbacks: reasoner chain
+fb=$(get_fallbacks "reasoner")
+[[ "$fb" == *"reasoner-portable"* && "$fb" == *"reasoner-cloud"* ]] \
+    && pass "reasoner fallbacks: [reasoner-portable, reasoner-cloud]" \
+    || fail "reasoner fallbacks unexpected: $fb"
+
+# Fallbacks: judge chain
+fb=$(get_fallbacks "judge")
+[[ "$fb" == *"judge-portable"* && "$fb" == *"judge-cloud"* ]] \
+    && pass "judge fallbacks: [judge-portable, judge-cloud]" \
+    || fail "judge fallbacks unexpected: $fb"
 
 echo ""
 echo "=== Error cases ==="
 
-# Config file must be valid YAML (basic structure check)
+# Config must have model_list
 grep -q "^model_list:" "$CONFIG" && pass "model_list key exists" \
                                   || fail "model_list key not found"
 
-# Every model entry must have an order field
-entries=$(grep -c "model_name:" "$CONFIG")
-orders=$(grep -c "order:" "$CONFIG")
-[[ "$entries" == "$orders" ]] && pass "All $entries entries have order field" \
-                               || fail "$entries model entries but only $orders have order"
+# No order fields (fallback-based, not order-based)
+order_count=$(grep -c "order:" "$CONFIG" || true)
+[[ "$order_count" == "0" ]] && pass "No order fields present (fallback-based)" \
+                              || fail "Found $order_count order fields, expected 0"
 
-# All order values must be positive integers
-non_int=$(grep "order:" "$CONFIG" | awk '{print $2}' | grep -vE '^[1-9][0-9]*$' || true)
-[[ -z "$non_int" ]] && pass "All order values are positive integers" \
-                      || fail "Non-integer or non-positive order values: $non_int"
+# Every deployment has a model field
+entries=$(grep -c "model_name:" "$CONFIG")
+models=$(grep -c "model: " "$CONFIG")
+[[ "$models" -ge "$entries" ]] && pass "All $entries entries have model field" \
+                                 || fail "$entries model entries but only $models have model"
 
 echo ""
 echo "=== Edge cases ==="
 
-# Reasoner: no duplicate order values
-reasoner_orders=$(get_orders "reasoner" | awk '{print $2}' | sort)
-reasoner_unique=$(echo "$reasoner_orders" | sort -u)
-[[ "$reasoner_orders" == "$reasoner_unique" ]] && pass "Reasoner has no duplicate orders" \
-                                                 || fail "Reasoner has duplicate order values"
+# Reasoner timeout differs from judge timeout
+r_timeout=$(get_param "reasoner" "timeout")
+j_timeout=$(get_param "judge" "timeout")
+[[ "$r_timeout" != "$j_timeout" ]] && pass "reasoner timeout ($r_timeout) != judge timeout ($j_timeout)" \
+                                     || fail "reasoner and judge have same timeout: $r_timeout"
 
-# Reasoner: consecutive orders starting from 1
-expected=$(printf '%s\n' 1 2 3)
-[[ "$reasoner_orders" == "$expected" ]] && pass "Reasoner orders are consecutive 1,2,3" \
-                                         || fail "Reasoner orders not consecutive: $(echo $reasoner_orders | tr '\n' ',')"
+# Judge-portable max_parallel_requests < judge
+j_mpr=$(get_param "judge" "max_parallel_requests")
+jp_mpr=$(get_param "judge-portable" "max_parallel_requests")
+[[ "$jp_mpr" -lt "$j_mpr" ]] && pass "judge-portable max_parallel ($jp_mpr) < judge ($j_mpr)" \
+                                || fail "judge-portable max_parallel ($jp_mpr) not less than judge ($j_mpr)"
 
-# Reasoner: lowest order starts at 1
-first_order=$(get_orders "reasoner" | awk '{print $2}' | sort -n | head -1)
-[[ "$first_order" == "1" ]] && pass "Reasoner lowest order starts at 1" \
-                              || fail "Reasoner lowest order is $first_order, expected 1"
+# num_retries is 0
+retries=$(grep "num_retries:" "$CONFIG" | awk '{print $2}')
+[[ "$retries" == "0" ]] && pass "num_retries is 0" \
+                          || fail "num_retries expected 0, got $retries"
 
-# Judge: lowest order starts at 1
-first_judge=$(get_orders "judge" | awk '{print $2}' | sort -n | head -1)
-[[ "$first_judge" == "1" ]] && pass "Judge lowest order starts at 1" \
-                              || fail "Judge lowest order is $first_judge, expected 1"
+# Fallback targets reference existing model_names
+all_names=$(grep "model_name:" "$CONFIG" | awk '{print $NF}')
+fallback_targets=$(sed -n '/fallbacks:/,$ s/.*"\([a-z-]*\)".*/\1/p' "$CONFIG" | sort -u)
+fb_missing=""
+for target in $fallback_targets; do
+    echo "$all_names" | grep -qx "$target" || fb_missing="$fb_missing $target"
+done
+[[ -z "$fb_missing" ]] && pass "All fallback targets exist in model_list" \
+                         || fail "Fallback targets not in model_list:$fb_missing"
+
+# All timeout values are positive integers
+bad_timeouts=$(grep "timeout:" "$CONFIG" | awk '{print $2}' | grep -vE '^[1-9][0-9]*$' || true)
+[[ -z "$bad_timeouts" ]] && pass "All timeout values are positive integers" \
+                           || fail "Invalid timeout values: $bad_timeouts"
+
+# Required router_settings keys exist
+for key in enable_pre_call_checks num_retries timeout cooldown_time; do
+    grep -q "$key:" "$CONFIG" && pass "router_settings has $key" \
+                                || fail "router_settings missing $key"
+done
 
 echo ""
 echo "--- Results: $PASS passed, $FAIL failed ---"

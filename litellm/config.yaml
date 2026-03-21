@@ -5,7 +5,7 @@
 model_list:
   # ================================================================
   # Reasoner: primary inference model
-  # Priority: Win GPU → Mac fallback → Cloud fallback
+  # Fallback: local → portable → Cloud
   # ================================================================
   - model_name: reasoner
     litellm_params:
@@ -13,61 +13,55 @@ model_list:
       api_base: os.environ/LLAMA_SERVER_URL
       api_key: "not-needed"
       timeout: 30
-      order: 1
 
-  - model_name: reasoner
+  - model_name: reasoner-portable
     litellm_params:
       model: os.environ/REASONER_PORTABLE_MODEL
       api_base: os.environ/PORTABLE_LLM_SERVER_URL
       api_key: "not-needed"
       timeout: 30
-      order: 2
 
-  - model_name: reasoner
+  - model_name: reasoner-cloud
     litellm_params:
       model: os.environ/REASONER_CLOUD_MODEL
       api_key: os.environ/CLOUD_API_KEY
-      order: 3
 
   # ================================================================
   # Judge: evaluation model for LangChain Judge chain
-  # Load balance: Mac + GPU host (least-busy), Cloud fallback
+  # Fallback: local → portable → Cloud
   # ================================================================
-  - model_name: judge
-    litellm_params:
-      model: os.environ/JUDGE_LOCAL_MODEL
-      api_base: os.environ/PORTABLE_LLM_SERVER_URL
-      api_key: "not-needed"
-      timeout: 15
-      max_parallel_requests: 4
-      order: 1
-
   - model_name: judge
     litellm_params:
       model: os.environ/JUDGE_LOCAL_MODEL
       api_base: os.environ/LLAMA_SERVER_URL
       api_key: "not-needed"
-      timeout: 30
+      timeout: 15
       max_parallel_requests: 4
-      order: 1
 
-  - model_name: judge
+  - model_name: judge-portable
+    litellm_params:
+      model: os.environ/JUDGE_LOCAL_MODEL
+      api_base: os.environ/PORTABLE_LLM_SERVER_URL
+      api_key: "not-needed"
+      timeout: 10
+      max_parallel_requests: 2
+
+  - model_name: judge-cloud
     litellm_params:
       model: os.environ/JUDGE_CLOUD_MODEL
       api_key: os.environ/CLOUD_API_KEY
-      order: 2
 
 router_settings:
-  enable_pre_call_checks: true   # Required for 'order' to work
-  routing_strategy: "least-busy"
-  num_retries: 2
+  enable_pre_call_checks: true
+  num_retries: 0
   timeout: 60
-  retry_after: 5
-  allowed_fails: 2
-  cooldown_time: 30
+  cooldown_time: 120
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
 litellm_settings:
   drop_params: true              # Ignore unsupported params per provider
+  fallbacks:
+    - reasoner: ["reasoner-portable", "reasoner-cloud"]
+    - judge: ["judge-portable", "judge-cloud"]

@@ -49,7 +49,7 @@ OPENAI_API_BASE_URLS=http://litellm-proxy:4000/v1
 OPENAI_API_KEYS=<your-litellm-master-key>
 ```
 
-LiteLLM model routing is configured in `litellm/config.yaml`. Each model group uses priority-based fallback (`order` field): lower values are tried first, higher values are fallbacks when the preferred host is unavailable.
+LiteLLM model routing is configured in `litellm/config.yaml`. Each model group uses a fallback chain (`litellm_settings.fallbacks`): the primary deployment is tried first, and on failure the next in the chain is used within the same request.
 
 ### Connecting directly to llama-server (bypass LiteLLM)
 
