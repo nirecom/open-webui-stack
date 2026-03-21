@@ -1,8 +1,8 @@
 # Open WebUI Stack
 
-Docker Compose setup for [Open WebUI](https://github.com/open-webui/open-webui) with SearXNG, Cloudflare Tunnel, and Watchtower.
+Docker Compose setup for [Open WebUI](https://github.com/open-webui/open-webui) with [LiteLLM](https://github.com/BerriAI/litellm) Proxy, SearXNG, Cloudflare Tunnel, and Watchtower.
 
-LLM inference runs on a separate host via [llama.cpp](https://github.com/ggml-org/llama.cpp) (llama-server), either directly or through [LiteLLM](https://github.com/BerriAI/litellm) proxy.
+LiteLLM Proxy is included in this stack as the LLM gateway (model routing, fallback, load balancing). LLM inference runs on separate hosts via [llama.cpp](https://github.com/ggml-org/llama.cpp) (llama-swap / llama-server), with cloud API fallback.
 
 ## Architecture
 
@@ -40,20 +40,20 @@ docker compose up -d
 | `OPEN_WEBUI_PORT` | Open WebUI port (optional, default: 3000) | `3000` |
 | `SEARXNG_PORT` | SearXNG port (optional, default: 8888) | `8888` |
 
-### Connecting to LiteLLM (recommended)
+### LLM Backend (default: LiteLLM Proxy)
 
-If [litellm-stack](https://github.com/nirecom/litellm-stack) runs on the **same Docker host**, Open WebUI can reach it by Docker container name. Both stacks share the `shared-llm-net` Docker network, which is owned by litellm-stack. Start litellm-stack first (or run `docker network create shared-llm-net` manually).
+LiteLLM Proxy runs as part of this stack. Open WebUI connects to it via the default Compose network:
 
 ```env
 OPENAI_API_BASE_URLS=http://litellm-proxy:4000/v1
 OPENAI_API_KEYS=<your-litellm-master-key>
 ```
 
-> `litellm-proxy` is the container name defined in litellm-stack's `docker-compose.yml`. This works because both stacks join a shared Docker network, enabling cross-stack container name resolution.
+LiteLLM model routing is configured in `litellm/config.yaml`.
 
-### Connecting directly to llama-server
+### Connecting directly to llama-server (bypass LiteLLM)
 
-If not using LiteLLM, point directly to the llama-server host:
+To bypass LiteLLM and connect directly to a llama-server host:
 
 ```env
 OPENAI_API_BASE_URLS=https://<your-llm-server>/v1
