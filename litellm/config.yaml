@@ -5,16 +5,8 @@
 model_list:
   # ================================================================
   # Reasoner: primary inference model
-  # Load balance: Mac + GPU host (least-busy), Cloud fallback
+  # Priority: Win GPU → Mac fallback → Cloud fallback
   # ================================================================
-  - model_name: reasoner
-    litellm_params:
-      model: os.environ/REASONER_PORTABLE_MODEL
-      api_base: os.environ/PORTABLE_LLM_SERVER_URL
-      api_key: "not-needed"
-      timeout: 30
-      order: 1
-
   - model_name: reasoner
     litellm_params:
       model: os.environ/REASONER_LOCAL_MODEL
@@ -25,9 +17,17 @@ model_list:
 
   - model_name: reasoner
     litellm_params:
+      model: os.environ/REASONER_PORTABLE_MODEL
+      api_base: os.environ/PORTABLE_LLM_SERVER_URL
+      api_key: "not-needed"
+      timeout: 30
+      order: 2
+
+  - model_name: reasoner
+    litellm_params:
       model: os.environ/REASONER_CLOUD_MODEL
       api_key: os.environ/CLOUD_API_KEY
-      order: 2
+      order: 3
 
   # ================================================================
   # Judge: evaluation model for LangChain Judge chain
