@@ -5,8 +5,16 @@
 model_list:
   # ================================================================
   # Reasoner: primary inference model
-  # Fallback order: local GPU host → Cloud API
+  # Load balance: Mac + GPU host (least-busy), Cloud fallback
   # ================================================================
+  - model_name: reasoner
+    litellm_params:
+      model: os.environ/REASONER_LOCAL_MODEL
+      api_base: os.environ/PORTABLE_LLM_SERVER_URL
+      api_key: "not-needed"
+      timeout: 5
+      order: 1
+
   - model_name: reasoner
     litellm_params:
       model: os.environ/REASONER_LOCAL_MODEL
