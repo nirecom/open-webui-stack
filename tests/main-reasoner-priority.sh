@@ -100,8 +100,12 @@ models=$(grep -c "model: " "$CONFIG")
 echo ""
 echo "=== Edge cases ==="
 
-# Reasoner timeout differs from judge timeout
+# Reasoner timeout is 120s (long inference)
 r_timeout=$(get_param "reasoner" "timeout")
+[[ "$r_timeout" == "120" ]] && pass "reasoner timeout is 120s" \
+                              || fail "reasoner timeout expected 120, got $r_timeout"
+
+# Reasoner timeout differs from judge timeout
 j_timeout=$(get_param "judge" "timeout")
 [[ "$r_timeout" != "$j_timeout" ]] && pass "reasoner timeout ($r_timeout) != judge timeout ($j_timeout)" \
                                      || fail "reasoner and judge have same timeout: $r_timeout"

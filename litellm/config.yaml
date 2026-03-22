@@ -12,7 +12,7 @@ model_list:
       model: os.environ/REASONER_LOCAL_MODEL
       api_base: os.environ/LLAMA_SERVER_URL
       api_key: "not-needed"
-      timeout: 30
+      timeout: 120
 
   - model_name: reasoner-portable
     litellm_params:
