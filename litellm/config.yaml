@@ -28,23 +28,23 @@ model_list:
 
   # ================================================================
   # Judge: evaluation model for LangChain Judge chain
-  # Fallback: local → portable → Cloud
+  # Fallback: portable (Mac GPU) → local (Win CPU) → Cloud
   # ================================================================
   - model_name: judge
+    litellm_params:
+      model: os.environ/JUDGE_PORTABLE_MODEL
+      api_base: os.environ/PORTABLE_LLM_SERVER_URL
+      api_key: "not-needed"
+      timeout: 15
+      max_parallel_requests: 2
+
+  - model_name: judge-local
     litellm_params:
       model: os.environ/JUDGE_LOCAL_MODEL
       api_base: os.environ/LLAMA_SERVER_URL
       api_key: "not-needed"
-      timeout: 15
+      timeout: 60
       max_parallel_requests: 4
-
-  - model_name: judge-portable
-    litellm_params:
-      model: os.environ/JUDGE_LOCAL_MODEL
-      api_base: os.environ/PORTABLE_LLM_SERVER_URL
-      api_key: "not-needed"
-      timeout: 10
-      max_parallel_requests: 2
 
   - model_name: judge-cloud
     litellm_params:
@@ -64,4 +64,4 @@ litellm_settings:
   drop_params: true              # Ignore unsupported params per provider
   fallbacks:
     - reasoner: ["reasoner-portable", "reasoner-cloud"]
-    - judge: ["judge-portable", "judge-cloud"]
+    - judge: ["judge-local", "judge-cloud"]

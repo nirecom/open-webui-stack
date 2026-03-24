@@ -51,6 +51,8 @@ OPENAI_API_KEYS=<your-litellm-master-key>
 
 LiteLLM model routing is configured in `litellm/config.yaml`. Each model group uses a fallback chain (`litellm_settings.fallbacks`): the primary deployment is tried first, and on failure the next in the chain is used within the same request. Per-model timeouts are set in `litellm_params.timeout` (e.g., 120s for reasoner models that need longer inference time).
 
+Current routing: reasoner primary is local (Win GPU), judge primary is portable (Mac GPU). Both fall back to local → cloud on failure.
+
 ### Connecting directly to llama-server (bypass LiteLLM)
 
 To bypass LiteLLM and connect directly to a llama-server host:

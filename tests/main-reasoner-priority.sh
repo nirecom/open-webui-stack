@@ -52,15 +52,15 @@ key=$(get_param "reasoner-cloud" "api_key")
 [[ "$key" == *"CLOUD_API_KEY"* ]] && pass "reasoner-cloud uses CLOUD_API_KEY" \
                                     || fail "reasoner-cloud expected CLOUD_API_KEY, got $key"
 
-# Judge primary uses local (Win GPU)
+# Judge primary uses portable (Mac GPU)
 base=$(get_api_base "judge")
-[[ "$base" == *"LLAMA_SERVER_URL"* ]] && pass "judge primary uses LLAMA_SERVER_URL" \
-                                        || fail "judge primary expected LLAMA_SERVER_URL, got $base"
+[[ "$base" == *"PORTABLE_LLM_SERVER_URL"* ]] && pass "judge primary uses PORTABLE_LLM_SERVER_URL" \
+                                                || fail "judge primary expected PORTABLE_LLM_SERVER_URL, got $base"
 
-# Judge-portable uses portable (Mac)
-base=$(get_api_base "judge-portable")
-[[ "$base" == *"PORTABLE_LLM_SERVER_URL"* ]] && pass "judge-portable uses PORTABLE_LLM_SERVER_URL" \
-                                                || fail "judge-portable expected PORTABLE_LLM_SERVER_URL, got $base"
+# Judge-local uses local (Win CPU fallback)
+base=$(get_api_base "judge-local")
+[[ "$base" == *"LLAMA_SERVER_URL"* ]] && pass "judge-local uses LLAMA_SERVER_URL" \
+                                        || fail "judge-local expected LLAMA_SERVER_URL, got $base"
 
 # Judge-cloud uses cloud API key
 key=$(get_param "judge-cloud" "api_key")
@@ -75,8 +75,8 @@ fb=$(get_fallbacks "reasoner")
 
 # Fallbacks: judge chain
 fb=$(get_fallbacks "judge")
-[[ "$fb" == *"judge-portable"* && "$fb" == *"judge-cloud"* ]] \
-    && pass "judge fallbacks: [judge-portable, judge-cloud]" \
+[[ "$fb" == *"judge-local"* && "$fb" == *"judge-cloud"* ]] \
+    && pass "judge fallbacks: [judge-local, judge-cloud]" \
     || fail "judge fallbacks unexpected: $fb"
 
 echo ""
@@ -110,11 +110,11 @@ j_timeout=$(get_param "judge" "timeout")
 [[ "$r_timeout" != "$j_timeout" ]] && pass "reasoner timeout ($r_timeout) != judge timeout ($j_timeout)" \
                                      || fail "reasoner and judge have same timeout: $r_timeout"
 
-# Judge-portable max_parallel_requests < judge
+# Judge-local max_parallel_requests > judge (local has more CPU threads)
 j_mpr=$(get_param "judge" "max_parallel_requests")
-jp_mpr=$(get_param "judge-portable" "max_parallel_requests")
-[[ "$jp_mpr" -lt "$j_mpr" ]] && pass "judge-portable max_parallel ($jp_mpr) < judge ($j_mpr)" \
-                                || fail "judge-portable max_parallel ($jp_mpr) not less than judge ($j_mpr)"
+jl_mpr=$(get_param "judge-local" "max_parallel_requests")
+[[ "$jl_mpr" -gt "$j_mpr" ]] && pass "judge-local max_parallel ($jl_mpr) > judge ($j_mpr)" \
+                                || fail "judge-local max_parallel ($jl_mpr) not greater than judge ($j_mpr)"
 
 # num_retries is 0
 retries=$(grep "num_retries:" "$CONFIG" | awk '{print $2}')
