@@ -1,9 +1,9 @@
 # Reverse proxy with active-passive failover
-# Primary: slave host open-webui (fast, local GPU)
+# Primary: slave host open-webui via TLS (fast, local GPU)
 # Fallback: local open-webui (same compose network)
 #
 # cloudflared tunnel points to http://caddy:8080
-# SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3000)
+# SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3443)
 
 :8080 {
 	log {
@@ -11,7 +11,11 @@
 	}
 
 	reverse_proxy {
-		to {$SLAVE_OPEN_WEBUI_URL} open-webui:8080
+		to https://{$SLAVE_OPEN_WEBUI_URL} open-webui:8080
+
+		transport http {
+			tls_insecure_skip_verify
+		}
 
 		lb_policy first
 
