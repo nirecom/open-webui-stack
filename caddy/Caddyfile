@@ -5,13 +5,18 @@
 # cloudflared tunnel points to http://caddy:8080
 # SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3443)
 
+:3444 {
+	tls internal
+	reverse_proxy open-webui:8080
+}
+
 :8080 {
 	log {
 		output stderr
 	}
 
 	reverse_proxy {
-		to https://{$SLAVE_OPEN_WEBUI_URL} open-webui:8080
+		to https://{$SLAVE_OPEN_WEBUI_URL} https://127.0.0.1:3444
 
 		transport http {
 			tls_insecure_skip_verify
