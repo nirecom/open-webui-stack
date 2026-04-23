@@ -44,6 +44,12 @@ If `uwsgi.ini` fails to generate on first run: temporarily comment out `cap_drop
 
 - Sibling directory `../ai-specs` is configured as an additional Claude Code directory (`.claude/settings.json`) and contains architecture design documents.
 
+## Docs Structure
+
+`docs/` is a junction to the shared LangChain project docs (in a sibling directory).
+Both open-webui-stack and langchain-stack share the same docs because they are managed
+together as one project. History, architecture, and todo go to that shared location.
+
 ## LangChain Project: Phase Workflow
 
 This repo participates in the LangChain phased implementation.
