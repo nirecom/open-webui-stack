@@ -1,34 +1,31 @@
 # Reverse proxy with active-passive failover
 # Primary: slave host open-webui via TLS (fast, local GPU)
-# Fallback: local open-webui via TLS internal (same container, localhost avoids IP SAN issue)
+# Fallback: local open-webui via HTTP (same Docker network)
+#
+# Two separate reverse_proxy blocks avoid mixed-scheme and TLS self-loop issues.
+# handle_errors catches 502/503 from the primary and routes to local fallback.
 #
 # cloudflared tunnel points to http://caddy:8080
 # SLAVE_OPEN_WEBUI_URL must be set in .env (e.g. <slave-ip>:3443)
-
-# Local TLS endpoint for fallback — using localhost so Caddy internal CA can issue a cert
-:3444 {
-	tls internal
-	reverse_proxy open-webui:8080
-}
 
 :8080 {
 	log {
 		output stderr
 	}
 
-	reverse_proxy {
-		to https://{$SLAVE_OPEN_WEBUI_URL} https://localhost:3444
-
+	reverse_proxy https://{$SLAVE_OPEN_WEBUI_URL} {
 		transport http {
 			tls_insecure_skip_verify
 		}
-
-		lb_policy first
 
 		health_uri /health
 		health_interval 5s
 		health_timeout 3s
 
 		header_down X-Upstream {http.reverse_proxy.upstream.address}
+	}
+
+	handle_errors 502 503 {
+		reverse_proxy http://open-webui:8080
 	}
 }
