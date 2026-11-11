@@ -1,6 +1,7 @@
 {
   "version": 1,
   "migrate": {
-    "tracker": "done"
+    "tracker": "done",
+    "issues": "done"
   }
 }
